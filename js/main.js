@@ -323,7 +323,7 @@ function computeDriftedPositions(baseData, timeMyr) {
     return drifted;
 }
 
-function applyDrift(timeMyr) {
+function applyDrift(timeMyr, { showOverlay = true } = {}) {
     if (!state.curData) return;
     if (!state.driftBase) state.driftBase = state.curData;
     const base = state.driftBase;
@@ -331,9 +331,9 @@ function applyDrift(timeMyr) {
         restoreBaseData();
         return;
     }
-    showBuildOverlay();
-    onProgress(0, 'Simulating continental drift...');
-    setTimeout(() => {
+    if (driftInput) driftInput.value = timeMyr;
+    setDriftLabel(timeMyr);
+    const run = () => {
         const driftedRxyz = computeDriftedPositions(base, timeMyr);
         const driftedTxyz = generateTriangleCenters(base.mesh, driftedRxyz);
         state.curData = { ...base, r_xyz: driftedRxyz, t_xyz: driftedTxyz };
@@ -341,8 +341,15 @@ function applyDrift(timeMyr) {
         buildMesh();
         refreshActiveArrows();
         if (state.mapMesh && !state.mapMode) buildMapMesh();
-        hideBuildOverlay();
-    }, 30);
+        if (showOverlay) hideBuildOverlay();
+    };
+    if (showOverlay) {
+        showBuildOverlay();
+        onProgress(0, 'Simulating continental drift...');
+        setTimeout(run, 30);
+    } else {
+        run();
+    }
 }
 
 if (driftInput) {
