@@ -22,6 +22,7 @@ All three are considered together; ties are broken in the order above.
 
 - **Fibonacci sphere meshing** with Voronoi cell tessellation via Delaunay triangulation
 - **Tectonic plate simulation** — farthest-point seed placement with top-3 jitter, round-robin flood fill with directional growth bias, growth-rate governor, compactness penalty to prevent spindly shapes, multi-pass boundary smoothing, and fragment reconnection
+- **Continental drift simulation** — scrub plates forward or backward in geologic time using their Euler pole motions
 - **Ocean/land assignment** — farthest-point continent seeding, round-robin growth with separation guarantees, trapped sea absorption, targeting ~30% land coverage
 - **Collision detection** — convergent, divergent, and transform boundary classification with density-based subduction modeling; dual-layer super plate system groups same-type plates into ~20 tectonic units for broad orogenic belts blended 50/50 with fine-grained individual plate orogeny
 - **Elevation generation** — three distance fields (mountain/ocean/coastline) combined via harmonic-mean formula, stress-driven uplift, asymmetric mountain profiles, continental shelf/slope/abyss profiles, foreland basins, plateau formation, and rift valleys with graben profiles
@@ -126,6 +127,7 @@ Climate simulation (wind, ocean currents, precipitation, temperature, Köppen cl
   - **Heightmap** — black-to-white gradient on a fixed absolute scale (-5 km ocean floor to 6 km peaks), so the same physical height always maps to the same shade
 - **View** dropdown — switch between Globe and Map (equirectangular projection)
 - **Center Longitude** slider (map mode only) — shifts the map projection's central meridian to any longitude from 180°W to 180°E, scrolling the equirectangular projection so the chosen longitude is centered. Exports are unaffected (always centered on 0°).
+- **Continental Drift** — scrub plates forward or backward in time (in millions of years) using their Euler pole motions. Drift is visual-only and does not recompute climate.
 - **Wireframe** — toggle switch to show Voronoi cell edges as a wireframe overlay
 - **Show Plates** — toggle switch to color regions by plate (green shades = land, blue shades = ocean); also draws black super plate boundary lines showing tectonic super-groups
 - **Auto-Rotate** — toggle switch to spin the globe continuously

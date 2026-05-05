@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>World Orogen — Procedural Planet Generator</title>
-    <meta name="description" content="Generate realistic procedural planets with tectonic plates, erosion, climate simulation, and volcanic islands — free, in your browser. Export heightmaps for worldbuilding, games, and tabletop RPGs.">
-    <meta name="keywords" content="procedural planet generator, world generator, heightmap generator, tectonic simulation, worldbuilding tool, fantasy map maker, terrain generator, planet builder, procedural generation, Three.js, tabletop RPG map, D&D world map, game dev heightmap">
+    <meta name="description" content="Generate realistic procedural planets with tectonic plates, continental drift, erosion, climate simulation, and volcanic islands — free, in your browser. Export heightmaps for worldbuilding, games, and tabletop RPGs.">
+    <meta name="keywords" content="procedural planet generator, world generator, heightmap generator, tectonic simulation, continental drift, worldbuilding tool, fantasy map maker, terrain generator, planet builder, procedural generation, Three.js, tabletop RPG map, D&D world map, game dev heightmap">
     <meta name="author" content="World Orogen">
     <meta name="theme-color" content="#0a0e17">
     <link rel="canonical" href="https://orogen.studio/">
@@ -14,7 +14,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://orogen.studio/">
     <meta property="og:title" content="World Orogen — Procedural Planet Generator">
-    <meta property="og:description" content="Generate realistic procedural planets with tectonic plates, erosion, climate simulation, and volcanic islands — free, in your browser. Export heightmaps for worldbuilding, games, and tabletop RPGs.">
+    <meta property="og:description" content="Generate realistic procedural planets with tectonic plates, continental drift, erosion, climate simulation, and volcanic islands — free, in your browser. Export heightmaps for worldbuilding, games, and tabletop RPGs.">
     <meta property="og:image" content="https://orogen.studio/preview.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -23,7 +23,7 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="World Orogen — Procedural Planet Generator">
-    <meta name="twitter:description" content="Generate realistic procedural planets with tectonic plates, erosion, climate simulation, and volcanic islands — free, in your browser.">
+    <meta name="twitter:description" content="Generate realistic procedural planets with tectonic plates, continental drift, erosion, climate simulation, and volcanic islands — free, in your browser.">
     <meta name="twitter:image" content="https://orogen.studio/preview.png">
 
     <!-- Structured Data -->
@@ -33,7 +33,7 @@
         "@type": "WebApplication",
         "name": "World Orogen",
         "url": "https://orogen.studio/",
-        "description": "A browser-based procedural planet generator that creates realistic terrestrial planets with tectonic plate simulation, erosion, climate modeling, and interactive editing. Export heightmaps, satellite views, and climate maps for worldbuilding, game development, and tabletop RPGs.",
+        "description": "A browser-based procedural planet generator that creates realistic terrestrial planets with tectonic plate simulation, continental drift, erosion, climate modeling, and interactive editing. Export heightmaps, satellite views, and climate maps for worldbuilding, game development, and tabletop RPGs.",
         "applicationCategory": "DesignApplication",
         "operatingSystem": "Any (browser-based)",
         "browserRequirements": "Requires a modern browser with WebGL support",
@@ -47,6 +47,7 @@
             "Glacial, hydraulic, and thermal erosion",
             "Climate simulation with wind, precipitation, and ocean currents",
             "Hotspot volcanism with island chains",
+            "Continental drift simulation over geologic time",
             "Interactive plate editing",
             "Equirectangular heightmap import with automatic climate simulation",
             "Equirectangular map export up to 65536px",
@@ -124,6 +125,7 @@
         <h2>Key Features</h2>
         <ul>
             <li>Tectonic plate simulation with convergent, divergent, and transform boundaries</li>
+            <li>Continental drift simulation to move plates millions of years forward or backward</li>
             <li>Multiple erosion types: glacial (fjords, U-shaped valleys), hydraulic (river valleys), and thermal (talus slopes)</li>
             <li>Climate simulation with seasonal wind patterns, ocean currents, precipitation, and K&ouml;ppen climate classification</li>
             <li>Hotspot volcanism with drift-trail island chains (like Hawaii)</li>
@@ -281,6 +283,11 @@
                     <button class="map-tab" data-layer="landheightmap">Heightmap</button>
                 </div>
                 <div class="cg">
+                    <label>Continental Drift <span class="tip" data-tip="Move plates forward or backward in geologic time using their Euler pole motions. Drift is visual-only and does not recompute climate.">?</span> <span class="v" id="vDrift">0 Myr</span></label>
+                    <input type="number" id="sDrift" min="-250" max="250" value="0" step="5" inputmode="numeric">
+                    <div class="slider-hint"><span>Past</span><span>Future</span></div>
+                </div>
+                <div class="cg">
                     <label>Inspect</label>
                     <select id="debugLayer">
                         <option value="">Terrain</option>
@@ -393,7 +400,7 @@
             </div>
             <div class="tutorial-step" data-step="3">
                 <h3>Visualize Your World</h3>
-                <p>Switch between <strong>Terrain</strong>, <strong>Satellite</strong>, <strong>Climate</strong>, and <strong>Heightmap</strong> views using the tabs under Visual Options. Use the <strong>Inspect</strong> dropdown for detailed layers like pressure, wind, and precipitation.</p>
+                <p>Switch between <strong>Terrain</strong>, <strong>Satellite</strong>, <strong>Climate</strong>, and <strong>Heightmap</strong> views using the tabs under Visual Options. Use the <strong>Inspect</strong> dropdown for detailed layers like pressure, wind, and precipitation. The <strong>Continental Drift</strong> control lets you scrub plates forward or backward in time.</p>
                 <p>At high detail, climate is skipped automatically for faster generation &mdash; it computes on demand when you switch to a climate view.</p>
             </div>
             <div class="tutorial-step" data-step="4">

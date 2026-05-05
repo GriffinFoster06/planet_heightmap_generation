@@ -120,6 +120,12 @@ body { background: #000; overflow: hidden; font-family: 'Segoe UI', system-ui, s
     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 input[type="range"] { width: 100%; accent-color: #48f; cursor: pointer; }
+input[type="number"] {
+    width: 100%; padding: 7px 10px; font-size: 14px; font-family: inherit;
+    background: rgba(255,255,255,0.06); color: #cde;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+}
+input[type="number"]:focus { outline: none; border-color: #48f; }
 
 /* Slider thumb tooltip */
 .slider-tooltip {
@@ -968,6 +974,7 @@ button#generate.generating {
     .toggle-label input:checked + .toggle-track .toggle-thumb { transform: translateX(16px); }
     button#generate { padding: 14px; font-size: 16px; }
     select { padding: 10px 12px; }
+    input[type="number"] { padding: 10px 12px; min-height: 44px; }
     #seedRow button { padding: 8px 12px; }
 
     /* Font sizes */

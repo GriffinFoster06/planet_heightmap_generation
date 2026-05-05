@@ -32,4 +32,6 @@ export const state = {
     _pendingBackup: null,
     _mapPendingBackup: null,
     importedHeightmap: false,
+    driftBase: null,
+    driftTimeMyr: 0,
 };

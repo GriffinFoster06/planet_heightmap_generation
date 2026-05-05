@@ -10,6 +10,7 @@ import { encodePlanetCode, decodePlanetCode } from './planet-code.js';
 import { buildMesh, updateMeshColors, updateSuperPlateBorders, buildMapMesh, rebuildGrids, exportMap, exportMapBatch, buildWindArrows, buildOceanCurrentArrows, updateKoppenHoverHighlight, updateMapKoppenHoverHighlight, updatePendingHighlight, updateMapPendingHighlight } from './planet-mesh.js';
 import { setupEditMode } from './edit-mode.js';
 import { detailFromSlider, sliderFromDetail } from './detail-scale.js';
+import { generateTriangleCenters } from './sphere-mesh.js';
 import { KOPPEN_CLASSES } from './koppen.js';
 import { elevationToColor } from './color-map.js';
 
@@ -42,6 +43,7 @@ function checkStale() {
 
 // Reapply smoothing + erosion without full rebuild (via worker)
 function reapplyPostProcessing() {
+    restoreBaseData({ rebuild: false });
     const d = state.curData;
     if (!d || !d.prePostElev) return;
 
@@ -49,6 +51,7 @@ function reapplyPostProcessing() {
     reapplyViaWorker(() => {
         reapplyBtn.classList.remove('spinning');
         updatePlanetCode(false);
+        setDriftBase();
         // If climate invalidated and viewing a climate layer, switch to Terrain
         if (skipClimate && CLIMATE_LAYERS.has(state.debugLayer)) {
             state.debugLayer = '';
@@ -165,6 +168,7 @@ for (const [s,v] of [['sN','vN'],['sP','vP'],['sCn','vCn'],['sJ','vJ'],['sNs','v
     if (s === 'sTmp' || s === 'sPrc') {
         slider.addEventListener('change', () => {
             if (!state.curData) return;
+            restoreBaseData({ rebuild: false });
             updatePlanetCode(false);
             showBuildOverlay();
             computeClimateViaWorker(onProgress, () => {
@@ -204,6 +208,158 @@ const CLIMATE_LAYERS = new Set([
     'koppen', 'biome', 'continentality'
 ]);
 
+// Continental drift controls
+const DRIFT_RADIANS_PER_MYR = 0.007; // ~0.4°/Myr at omega=1
+const driftInput = document.getElementById('sDrift');
+const driftValueEl = document.getElementById('vDrift');
+
+function formatDriftLabel(value) {
+    if (!value) return '0 Myr';
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${value} Myr`;
+}
+
+function setDriftLabel(value) {
+    if (driftValueEl) driftValueEl.textContent = formatDriftLabel(value);
+}
+
+function clampDriftValue(value) {
+    if (!driftInput) return value;
+    const min = Number(driftInput.min);
+    const max = Number(driftInput.max);
+    const step = Number(driftInput.step) || 1;
+    const clamped = Math.max(min, Math.min(max, value));
+    return Math.round(clamped / step) * step;
+}
+
+function refreshActiveArrows() {
+    const layer = state.debugLayer || '';
+    const isWindLayer = layer === 'pressureSummer' || layer === 'pressureWinter' ||
+                        layer === 'windSpeedSummer' || layer === 'windSpeedWinter';
+    const isOceanLayer = layer === 'oceanCurrentSummer' || layer === 'oceanCurrentWinter';
+    if (isWindLayer) {
+        buildOceanCurrentArrows(null);
+        buildWindArrows(layer.includes('Winter') ? 'winter' : 'summer');
+    } else if (isOceanLayer) {
+        buildWindArrows(null);
+        buildOceanCurrentArrows(layer.includes('Winter') ? 'winter' : 'summer');
+    } else {
+        buildWindArrows(null);
+        buildOceanCurrentArrows(null);
+    }
+}
+
+function setDriftBase(data = state.curData) {
+    if (!data) return;
+    state.driftBase = data;
+    state.driftTimeMyr = 0;
+    if (driftInput) driftInput.value = 0;
+    setDriftLabel(0);
+}
+
+function restoreBaseData({ rebuild = true } = {}) {
+    if (!state.driftBase) state.driftBase = state.curData;
+    if (state.driftBase && state.curData !== state.driftBase) {
+        state.curData = state.driftBase;
+        if (rebuild) {
+            buildMesh();
+            refreshActiveArrows();
+            if (state.mapMesh && !state.mapMode) buildMapMesh();
+        }
+    }
+    state.driftTimeMyr = 0;
+    if (driftInput) driftInput.value = 0;
+    setDriftLabel(0);
+}
+
+function computeDriftedPositions(baseData, timeMyr) {
+    const { mesh, r_xyz, r_plate, plateVec, plateSeeds } = baseData;
+    const numRegions = mesh.numRegions;
+    const drifted = new Float32Array(r_xyz.length);
+    const angleScale = timeMyr * DRIFT_RADIANS_PER_MYR;
+    if (!angleScale) {
+        drifted.set(r_xyz);
+        return drifted;
+    }
+    const rotCache = {};
+    for (const pid of plateSeeds) {
+        const pv = plateVec[pid];
+        const pole = pv && pv.pole;
+        const omega = pv && pv.omega;
+        if (!pole || !omega) continue;
+        const angle = omega * angleScale;
+        if (Math.abs(angle) < 1e-6) continue;
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+        rotCache[pid] = {
+            ax: pole[0],
+            ay: pole[1],
+            az: pole[2],
+            cosA,
+            sinA,
+            omc: 1 - cosA
+        };
+    }
+    for (let r = 0; r < numRegions; r++) {
+        const idx = 3 * r;
+        const x = r_xyz[idx];
+        const y = r_xyz[idx + 1];
+        const z = r_xyz[idx + 2];
+        const rot = rotCache[r_plate[r]];
+        if (!rot) {
+            drifted[idx] = x;
+            drifted[idx + 1] = y;
+            drifted[idx + 2] = z;
+            continue;
+        }
+        const dot = rot.ax * x + rot.ay * y + rot.az * z;
+        const cx = rot.ay * z - rot.az * y;
+        const cy = rot.az * x - rot.ax * z;
+        const cz = rot.ax * y - rot.ay * x;
+        drifted[idx] = x * rot.cosA + cx * rot.sinA + rot.ax * dot * rot.omc;
+        drifted[idx + 1] = y * rot.cosA + cy * rot.sinA + rot.ay * dot * rot.omc;
+        drifted[idx + 2] = z * rot.cosA + cz * rot.sinA + rot.az * dot * rot.omc;
+    }
+    return drifted;
+}
+
+function applyDrift(timeMyr) {
+    if (!state.curData) return;
+    if (!state.driftBase) state.driftBase = state.curData;
+    const base = state.driftBase;
+    if (!timeMyr) {
+        restoreBaseData();
+        return;
+    }
+    showBuildOverlay();
+    onProgress(0, 'Simulating continental drift...');
+    setTimeout(() => {
+        const driftedRxyz = computeDriftedPositions(base, timeMyr);
+        const driftedTxyz = generateTriangleCenters(base.mesh, driftedRxyz);
+        state.curData = { ...base, r_xyz: driftedRxyz, t_xyz: driftedTxyz };
+        state.driftTimeMyr = timeMyr;
+        buildMesh();
+        refreshActiveArrows();
+        if (state.mapMesh && !state.mapMode) buildMapMesh();
+        hideBuildOverlay();
+    }, 30);
+}
+
+if (driftInput) {
+    setDriftLabel(+driftInput.value || 0);
+    driftInput.addEventListener('input', () => {
+        const raw = parseFloat(driftInput.value);
+        setDriftLabel(Number.isFinite(raw) ? raw : 0);
+    });
+    driftInput.addEventListener('change', () => {
+        const raw = parseFloat(driftInput.value);
+        const value = clampDriftValue(Number.isFinite(raw) ? raw : 0);
+        driftInput.value = value;
+        setDriftLabel(value);
+        applyDrift(value);
+    });
+}
+
 // Map tabs → tab-layer mapping
 const mapTabs = document.getElementById('mapTabs');
 const vizLegend = document.getElementById('vizLegend');
@@ -211,6 +367,7 @@ const debugLayerEl = document.getElementById('debugLayer');
 
 function switchVisualization(layer) {
     if (CLIMATE_LAYERS.has(layer) && !state.climateComputed) {
+        restoreBaseData({ rebuild: false });
         // Need to compute climate first
         showBuildOverlay();
         computeClimateViaWorker(onProgress, () => {
@@ -453,6 +610,7 @@ function hideBuildOverlay() {
 const genBtn = document.getElementById('generate');
 genBtn.addEventListener('click', () => {
     clearReapplyPending();
+    restoreBaseData({ rebuild: false });
     buildWindArrows(null); // dispose previous wind arrows
     buildOceanCurrentArrows(null); // dispose previous ocean arrows
     showBuildOverlay();
@@ -470,6 +628,7 @@ genBtn.addEventListener('click', () => {
 });
 genBtn.addEventListener('generate-done', snapshotSliders);
 genBtn.addEventListener('generate-done', hideBuildOverlay);
+genBtn.addEventListener('generate-done', () => setDriftBase());
 genBtn.addEventListener('generate-done', () => {
     const infoEl = document.getElementById('info');
     if (!infoEl.dataset.nudged) {
@@ -566,6 +725,7 @@ genBtn.addEventListener('generate-done', () => {
 });
 
 document.addEventListener('plates-edited', () => {
+    setDriftBase();
     updatePlanetCode(true);
     // If climate was invalidated and we're viewing a climate layer, switch to Terrain
     if (!state.climateComputed && CLIMATE_LAYERS.has(state.debugLayer)) {
@@ -612,6 +772,7 @@ function applyCode(code) {
         setTimeout(() => { seedInput.style.borderColor = ''; }, 1500);
         return;
     }
+    restoreBaseData({ rebuild: false });
     seedError.classList.remove('visible');
     // Set slider values + fire input events to update displays
     const map = paramsToSliderMap(params);
@@ -840,6 +1001,7 @@ if (debugLayerEl) {
 
         // Compute climate first if needed (Satellite & Climate require it)
         if (!state.climateComputed) {
+            restoreBaseData({ rebuild: false });
             onProgress(0, 'Computing climate...');
             await new Promise(resolve => computeClimateViaWorker(onProgress, resolve));
         }
@@ -880,6 +1042,7 @@ setupEditMode();
     // Click: apply all pending toggles, then recompute once
     rebuildBtn.addEventListener('click', () => {
         if (state.pendingToggles.size === 0) return;
+        restoreBaseData({ rebuild: false });
         const { plateIsOcean, plateDensity, plateDensityLand, plateDensityOcean } = state.curData;
 
         // Apply all pending toggles
@@ -1077,6 +1240,7 @@ sidebarToggle.addEventListener('click', () => {
             // Collapse sheet so user sees the planet build
             if (isMobileLayout()) uiPanel.classList.add('collapsed');
             clearReapplyPending();
+            restoreBaseData({ rebuild: false });
             showBuildOverlay();
             generate(undefined, [], onProgress, shouldSkipClimate());
         }
